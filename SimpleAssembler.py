@@ -1,9 +1,10 @@
 import sys
+import Encode as en
 def encoding():
-    opcode={"add":"10000","sub":"10001","ld":"10100","st":"10101","mul":"10110","div":"10111","ls":"11001","rs":"11000","xor":"11010","or":"11011","and":"11100","not":"11101","cmp":"11110","jmp":"11111","jlt":"01100","jgt":"01101","je":"01111","hlt":"01010","movim":"10010","movr":"10011"}
+    opcode={"add":"10000","sub":"10001","ld":"10100","st":"10101","mul":"10110","div":"10111","ls":"11001","rs":"11000","xor":"11010","or":"11011","and":"11100","not":"11101","cmp":"11110","jmp":"11111","jlt":"01100","jgt":"01101","je":"01111","hlt":"01010","movim":"10010","movr":"10011","addf":"00000","subf":"00001","movf":"00010"}
     return opcode
 def getKeywords():
-    keywords=["add","sub","ld","st","mul","div","ls","rs","xor","or","and","not","cmp","jmp","jlt","jgt","je","hlt","mov","var","FLAGS","r0","r1","r2","r3","r4","r5","r6","R0","R1","R2","R3","R4","R5","R6"]
+    keywords=["add","sub","ld","st","mul","div","ls","rs","xor","or","and","not","cmp","jmp","jlt","jgt","je","hlt","mov","var","FLAGS","addf","subf","movf","r0","r1","r2","r3","r4","r5","r6","R0","R1","R2","R3","R4","R5","R6"]
     return keywords
 def LABL(d,index,lins,v):
     labels=dict()
@@ -40,8 +41,12 @@ def LABL(d,index,lins,v):
                     print(f"Error at line no {index[lineno]+1}: variable used as label name")
                     exit(0)
                 elif(not t[0].isalnum()):
-                    print(f"Error at line no {index[lineno]+1}: label name should be alphanumeric")
-                    exit(0)
+                    for i in t[0]:
+                        if (i>="A" and i<="Z") or (i>="a" and i<="z") or (i>="0" and i<="9") or (i=="_"):
+                            pass
+                        else:
+                            print(f"Error at line no {index[lineno]+1}: label name should be alphanumeric")
+                            exit(0)
                 labels[t[0]]=str((lineno)-len(variables))
         elif "var" in "".join(d[lineno])[0:3]:
             if(len(d[lineno])>2 or len(d[lineno])==1):
@@ -79,9 +84,9 @@ def takeInput():
                 v+=1
             index.append(i)
         if("hlt" in d[i]):
-            if(i<len(d)-1):
+            if(i<len(d)-1 and len(d[i+1].strip())!=0):
                 h=1
-                print(f"Error at line no {i+1}: hlt not at end of program")
+                print(f"Error at line no {i+2}: hlt not at end of program")
                 exit(0)
             elif(h==1):
                 print("More than one hlt")
@@ -104,7 +109,7 @@ def encodeRegister():
     reg={"R0":"000", "R1":"001", "R2":"010", "R3":"011", "R4":"100","R5":"101", "R6":"110","FLAGS":"111","r0":"000","r1":"001", "r2":"010", "r3":"011", "r4":"100","r5":"101", "r6":"110"}
     return reg
 def findType():
-    instructionType={"add":'A',"sub":'A',"mul":'A',"xor":'A',"or":'A',"and":'A','movim':'B',"rs":"B","ls":"B","movr":"C","div":"C","not":"C","cmp":"C","ld":"D","st":"D","jmp":"E","jlt":"E","jgt":"E","je":"E","hlt":"F"}
+    instructionType={"add":'A',"sub":'A',"mul":'A',"xor":'A',"or":'A',"and":'A',"addf":"A",'subf':'A','movf':"B",'movim':'B',"rs":"B","ls":"B","movr":"C","div":"C","not":"C","cmp":"C","ld":"D","st":"D","jmp":"E","jlt":"E","jgt":"E","je":"E","hlt":"F"}
     return instructionType
 def findUnused():
     unusedBits={'A':"00",'C':"00000","E":"000","F":"00000000000"}
@@ -185,23 +190,38 @@ def main():
             if len(i)!=3:
                 print(f"Error at line no {index[count]+1}: Invalid Syntax of instruction Type {i[0]}")
                 exit(0)
-            try:
+            if i[0]=="movf":
                 immediateValue=i[2][1:]
-                immediateValue=convert(immediateValue)
-                if(immediateValue==-1):
-                    print(f"Error at line no {index[count]+1}: The immediate value is out of range")
+                if(en.ieee(immediateValue,index[count]+1)==1):
+                    print(f"Error at line no {index[count]+1}: immediate value overflow")
                     exit(0)
-                if(immediateValue==-2):
-                    print(f"Error at line no {index[count]+1}: Immediate value must be a whole number")
+                immediateValue=en.ieee(immediateValue,index[count]+1)
+                try:
+                    encode+=reg[i[1]]+immediateValue
+                except Exception as e:
+                    if e in keywords:
+                        print(f"Error at line no {index[count]+1}: Illegal use of keyword {e}")
+                    else:
+                        print(f"Error at line no {index[count]+1}: The register {e} is invalid") 
                     exit(0)
-                encode+=reg[i[1]]+immediateValue
-            except Exception as e:
-                e=str(e)[1:len(str(e))-1]
-                if e in keywords:
-                    print(f"Error at line no {index[count]+1}: Illegal use of keyword {e}")
-                else:
-                    print(f"Error at line no {index[count]+1}: The register {e} is invalid")   
-                exit(0) 
+            else:
+                try:
+                    immediateValue=i[2][1:]
+                    immediateValue=convert(immediateValue)
+                    if(immediateValue==-1):
+                        print(f"Error at line no {index[count]+1}: The immediate value is out of range")
+                        exit(0)
+                    if(immediateValue==-2):
+                        print(f"Error at line no {index[count]+1}: Immediate value must be a number")
+                        exit(0)
+                    encode+=reg[i[1]]+immediateValue
+                except Exception as e:
+                    e=str(e)[1:len(str(e))-1]
+                    if e in keywords:
+                        print(f"Error at line no {index[count]+1}: Illegal use of keyword {e}")
+                    else:
+                        print(f"Error at line no {index[count]+1}: The register {e} is invalid")
+                    exit(0) 
         elif instructionType[i[0]]=="C":
             if len(i)!=3:
                 print(f"Error at line no {index[count]+1}: Invalid Syntax of instruction Type {i[0]}")
@@ -241,7 +261,6 @@ def main():
             if(i[1] not in labels):
                 print(f"Error at line no {index[count]+1}: Label {i[1]} does not exist")
                 exit(0)
-            
             memAddress=labels[i[1]]
             memAddress=convert(memAddress)
             encode+=unusedBits[instructionType[i[0]]]+memAddress
@@ -254,6 +273,9 @@ def main():
         count+=1
         encoded.append(encode)
     encoded.append(encode)
-    for i in encoded:
-        print(i)
+    i=0
+    while(i<len(encoded)-1):
+        print(encoded[i])
+        i+=1
+    print(encoded[i])
 main()
