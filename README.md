@@ -1,6 +1,7 @@
 # CO-Project
-This branch stores the final python files for the Simple Assembler and Simple Simulator
-Contributors:-
+
+Final CO project files for Simple Assembler and Simulator
+This is the final files for 
 1) Karan Gupta-2021258
 2) Shivesh Gulati-2021286
 3) Aditya Jain-2021511
